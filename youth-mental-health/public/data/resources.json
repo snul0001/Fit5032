@@ -1,0 +1,12 @@
+[
+  {"id":"r1","title":"Managing Exam Stress in 5 Minutes","summary":"Fast calming techniques for the night before an exam.","topics":["Anxiety","Study Stress"],"readMinutes":5},
+  {"id":"r2","title":"Build a Sleep Wind-Down Routine","summary":"Simple steps to improve sleep this week.","topics":["Sleep"],"readMinutes":6},
+  {"id":"r3","title":"What to Say When Overwhelmed","summary":"Tiny scripts for asking for help.","topics":["Relationships","Anxiety"],"readMinutes":4},
+  {"id":"r4","title":"Study in Sprints (Pomodoro)","summary":"Stay focused without burning out.","topics":["Study Stress"],"readMinutes":5},
+  {"id":"r5","title":"Grounding: 5-4-3-2-1","summary":"Lower anxiety fast anywhere.","topics":["Anxiety"],"readMinutes":3},
+  {"id":"r6","title":"Better Sleep With Screens","summary":"Reduce blue light and doomscrolling.","topics":["Sleep"],"readMinutes":5},
+  {"id":"r7","title":"Handling Group Work Stress","summary":"Roles, standups, shared doc.","topics":["Study Stress","Relationships"],"readMinutes":4},
+  {"id":"r8","title":"Micro-breaks That Help","summary":"90-second reset ideas.","topics":["Anxiety","Study Stress"],"readMinutes":2},
+  {"id":"r9","title":"Talk to a Trusted Adult","summary":"Plan your first sentence.","topics":["Relationships"],"readMinutes":3},
+  {"id":"r10","title":"Sleep Checklist for Students","summary":"Do these 5 things nightly.","topics":["Sleep"],"readMinutes":4}
+]
