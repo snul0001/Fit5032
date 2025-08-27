@@ -1,5 +1,6 @@
 <template>
   <div class="container py-4">
+
     <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
       <input v-model="q" class="form-control w-100 w-sm-50" placeholder="Search resources..." />
       <div class="ms-auto d-flex flex-wrap gap-2">
@@ -10,6 +11,7 @@
         <button v-if="topic" class="btn btn-sm btn-outline-secondary" @click="topic=null">Clear</button>
       </div>
     </div>
+
 
     <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xxl-4 g-3">
       <div class="col" v-for="r in filtered" :key="r.id">
@@ -25,20 +27,30 @@
         </div>
       </div>
     </div>
+
+
+    <div v-if="filtered.length===0" class="alert alert-secondary mt-3">No results. Try another search or clear the topic.</div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
+
 const items = ref([])
 const q = ref('')
 const topic = ref(null)
 const topics = ["Anxiety","Study Stress","Sleep","Relationships"]
 
+const route = useRoute()
+
 onMounted(async () => {
   const res = await fetch('/data/resources.json')
   items.value = await res.json()
+  q.value = (route.query.q ?? '').toString()
 })
+
+watch(() => route.query.q, (val) => { q.value = (val ?? '').toString() })
 
 const filtered = computed(() => {
   return items.value.filter(r => {
@@ -47,5 +59,6 @@ const filtered = computed(() => {
     return qok && tok
   })
 })
+
 function toggle(t){ topic.value = topic.value===t ? null : t }
 </script>

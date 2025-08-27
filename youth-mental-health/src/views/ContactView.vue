@@ -18,11 +18,16 @@
     <div v-if="sent" class="alert alert-success mt-3">Thanks! We’ll get back to you.</div>
   </div>
 </template>
+
 <script setup>
 import { ref } from 'vue'
 const email = ref(''); const msg = ref(''); const tried = ref(false); const sent = ref(false)
 function onSubmit(e){
   tried.value = true
-  if (e.target.checkValidity()) { sent.value = true; tried.value = false; email.value=''; msg.value='' }
+  if (e.target.checkValidity()) {
+    sent.value = true
+    tried.value = false
+    email.value=''; msg.value=''
+  }
 }
 </script>

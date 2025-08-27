@@ -1,8 +1,11 @@
 <template>
-  <nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top">
+  <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top">
     <div class="container">
-      <a class="navbar-brand fw-semibold" href="/">Youth Mental Health</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+      <RouterLink class="navbar-brand fw-semibold" to="/">Youth Mental Health</RouterLink>
+
+      <button class="navbar-toggler" type="button"
+              data-bs-toggle="collapse" data-bs-target="#nav"
+              aria-controls="nav" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
 
@@ -14,12 +17,15 @@
           <li class="nav-item"><RouterLink class="nav-link" to="/contact">Contact</RouterLink></li>
         </ul>
 
-        <form class="d-flex" role="search" @submit.prevent="$router.push('/resources')">
+
+        <form class="d-flex" role="search" @submit.prevent="onSearch">
           <input v-model="q" class="form-control" type="search" placeholder="Search resources..." />
         </form>
       </div>
     </div>
   </nav>
+
+
   <div class="bg-danger-subtle border-top border-bottom border-danger-subtle">
     <div class="container py-2 small">
       <strong>Need help now?</strong>
@@ -29,7 +35,13 @@
     </div>
   </div>
 </template>
+
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 const q = ref('')
+const router = useRouter()
+function onSearch() {
+  router.push({ path: '/resources', query: { q: q.value } })
+}
 </script>

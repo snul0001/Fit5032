@@ -4,8 +4,13 @@
     <h3 class="mb-1">{{ res.title }}</h3>
     <div class="text-muted small mb-3">{{ res.readMinutes }} min read · {{ res.topics.join(', ') }}</div>
     <p class="lead">{{ res.summary }}</p>
+    <div class="alert alert-info">This is a simple V1 detail page. You can expand with full content later.</div>
+  </div>
+  <div class="container py-4" v-else>
+    <div class="alert alert-warning">Resource not found.</div>
   </div>
 </template>
+
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
