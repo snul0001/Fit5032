@@ -55,31 +55,31 @@ async function register() {
 
     const cred = await createUserWithEmailAndPassword(
       auth,
-      email.value.toLowerCase(),
+      (email.value || '').toLowerCase(),
       password.value
     )
 
     // Set display name (fallback to email prefix)
-    const display = name.value || email.value.split('@')[0]
+    const display = name.value?.trim() || (cred.user.email?.split('@')[0] || 'User')
     await updateProfile(cred.user, { displayName: display })
 
-    // Create profile doc with default role
+    // Create/merge profile doc with DEFAULT ROLE = 'user'
     await setDoc(
       doc(db, 'users', cred.user.uid),
       {
         name: display,
-        email: cred.user.email.toLowerCase(),
-        role: 'youth',
+        email: (cred.user.email || '').toLowerCase(),
+        role: 'user',              // ✅ only 'user' (you can later set 'admin' in Firestore)
         createdAt: serverTimestamp(),
       },
       { merge: true }
     )
 
     console.log('Firebase Register Successful!', cred.user.uid)
-    router.push({ name: 'firebase-signin' }) // safer than hard-coded path
+    router.push({ name: 'firebase-signin' })
   } catch (e) {
-    err.value = msg(e)
     console.error(e)
+    err.value = msg(e)
   } finally {
     busy.value = false
   }

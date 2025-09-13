@@ -30,7 +30,7 @@
         <div class="d-flex align-items-center gap-2">
           <template v-if="user">
             <span class="navbar-text small">
-              Hi, {{ displayName }}<span v-if="role"> ({{ role }})</span>
+              Hi, {{ displayName }} <span class="text-uppercase">({{ role }})</span>
             </span>
             <button class="btn btn-outline-secondary btn-sm" @click="doLogout">Logout</button>
           </template>
@@ -65,29 +65,40 @@ function onSearch() {
   router.push({ path: '/resources', query: { q: q.value } })
 }
 
-// ---- Firebase auth/role state ----
+// ---- Firebase auth/role state (two roles only: 'admin' | 'user') ----
 const auth = getAuth()
 const db = getFirestore()
 
 const user = ref(null)
 const displayName = ref('')
-const role = ref('') // 'youth' | 'editor' | 'admin'
+const role = ref('') // 'admin' | 'user' (empty when logged out)
 
 onMounted(() => {
   onAuthStateChanged(auth, async (u) => {
     user.value = u
-    displayName.value = u?.displayName || u?.email?.split('@')[0] || ''
-    role.value = ''
-    if (u) {
-      try {
-        const snap = await getDoc(doc(db, 'users', u.uid))
-        if (snap.exists()) role.value = snap.data().role || ''
-      } catch (_) { /* ignore */ }
+    if (!u) {
+      displayName.value = ''
+      role.value = ''
+      return
+    }
+    displayName.value = u.displayName || u.email?.split('@')[0] || ''
+
+    // default to 'user' unless Firestore says 'admin'
+    role.value = 'user'
+    try {
+      const snap = await getDoc(doc(db, 'users', u.uid))
+      if (snap.exists() && (snap.data().role === 'admin')) {
+        role.value = 'admin'
+      }
+    } catch (_) {
+      // if read fails, silently fall back to 'user'
+      role.value = 'user'
     }
   })
 })
 
-const canCreate = computed(() => user.value && (role.value === 'editor' || role.value === 'admin'))
+// Only admins see the +Add link
+const canCreate = computed(() => user.value && role.value === 'admin')
 
 async function doLogout() {
   await signOut(auth)
