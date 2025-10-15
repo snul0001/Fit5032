@@ -59,18 +59,28 @@ async function register() {
       password.value
     )
 
-    // Set display name (fallback to email prefix)
+    // display name
     const display = name.value?.trim() || (cred.user.email?.split('@')[0] || 'User')
     await updateProfile(cred.user, { displayName: display })
 
-    // Create/merge profile doc with DEFAULT ROLE = 'user'
+    // extra creation timestamps (for instant visibility + easy display)
+    const now = new Date()
+    const createdAtMs = now.getTime()
+    const createdAtISO = now.toISOString()
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+
+    // profile doc
     await setDoc(
       doc(db, 'users', cred.user.uid),
       {
         name: display,
         email: (cred.user.email || '').toLowerCase(),
-        role: 'user',              // ✅ only 'user' (you can later set 'admin' in Firestore)
-        createdAt: serverTimestamp(),
+        role: 'user',                 // default; upgrade in Firestore to admin when needed
+        createdAt: serverTimestamp(), // authoritative server time
+        createdAtMs,                  // client epoch (shows instantly in console)
+        createdAtISO,                 // readable text
+        timezone,                     // user’s local tz for context
+        updatedAt: serverTimestamp(),
       },
       { merge: true }
     )

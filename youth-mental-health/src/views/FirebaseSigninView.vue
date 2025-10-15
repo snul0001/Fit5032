@@ -1,68 +1,84 @@
-<template>
-  <section class="section" style="max-width:480px">
-    <h1>Sign in</h1>
-
-    <form @submit.prevent="signin" novalidate>
-      <p><input class="input" type="email" placeholder="Email" v-model.trim="email" required /></p>
-      <p><input class="input" type="password" placeholder="Password" v-model="password" required /></p>
-
-      <p class="muted" v-if="err" role="alert">{{ err }}</p>
-
-      <p class="cta-row">
-        <button class="btn btn-primary" :disabled="busy">Sign in via Firebase</button>
-        <button type="button" class="btn" @click="reset" :disabled="busy || !email">Forgot?</button>
-      </p>
-    </form>
-  </section>
-</template>
-
 <script setup>
-import { ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth'
+import { ref } from "vue"
+import { useRouter, useRoute } from "vue-router"
+import {
+  getAuth,
+  // ✅ ADD:
+  setPersistence, browserLocalPersistence,
+  signInWithEmailAndPassword,
+  // ✅ ADD:
+  sendPasswordResetEmail
+} from "firebase/auth"
 
-const email = ref('')
-const password = ref('')
-const err = ref('')
-const busy = ref(false)
-
+const email = ref("")
+const password = ref("")
+const err = ref("")           // ✅ ADD (friendly errors)
+const busy = ref(false)       // ✅ ADD (button state)
 const router = useRouter()
 const route = useRoute()
 const auth = getAuth()
 
-function msg(e) {
-  const map = {
-    'auth/invalid-email': 'Please enter a valid email.',
-    'auth/user-not-found': 'No account with this email.',
-    'auth/wrong-password': 'Incorrect password.',
-    'auth/too-many-requests': 'Too many attempts. Try again later.',
-  }
-  return map[e?.code] || e?.message || 'Sign-in failed.'
-}
-
-async function signin() {
+const signin = async () => {
   try {
-    busy.value = true; err.value = ''
-    await signInWithEmailAndPassword(auth, email.value.toLowerCase(), password.value)
-    console.log('Signed in:', auth.currentUser)
-    router.push(route.query.next || '/')
+    err.value = ""
+    busy.value = true
+    // ✅ keep users signed in after refresh
+    await setPersistence(auth, browserLocalPersistence)
+    await signInWithEmailAndPassword(auth, email.value, password.value)
+    // optional: redirect to ?next=...
+    const next = route.query.next?.toString() || "/"
+    router.push(next)
   } catch (e) {
-    err.value = msg(e)
-    console.error(e)
+    // ✅ clearer messages
+    const map = {
+      "auth/invalid-credential": "Invalid email or password.",
+      "auth/invalid-email": "Please enter a valid email.",
+      "auth/user-disabled": "This account has been disabled.",
+      "auth/user-not-found": "No account found with that email.",
+      "auth/wrong-password": "Invalid email or password."
+    }
+    err.value = map[e?.code] || e?.message || "Sign-in failed."
   } finally {
     busy.value = false
   }
 }
 
-async function reset() {
+// ✅ ADD: simple forgot password flow
+const forgot = async () => {
   try {
-    busy.value = true; err.value = ''
-    await sendPasswordResetEmail(auth, email.value.toLowerCase())
-    err.value = 'Password reset email sent.'
+    err.value = ""
+    if (!email.value) { err.value = "Enter your email above first."; return }
+    busy.value = true
+    await sendPasswordResetEmail(auth, email.value)
+    err.value = "Password reset email sent."
   } catch (e) {
-    err.value = msg(e)
+    err.value = e?.message || "Could not send reset email."
   } finally {
     busy.value = false
   }
 }
 </script>
+
+<template>
+  <main class="container py-4" style="max-width:520px">
+    <h1>Sign in</h1>
+
+    <form @submit.prevent="signin" novalidate>
+      <p><input type="text" class="form-control" placeholder="Email" v-model="email" /></p>
+      <p><input type="password" class="form-control" placeholder="Password" v-model="password" /></p>
+
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary" :disabled="busy">
+          {{ busy ? 'Signing in…' : 'Sign in' }}
+        </button>
+        <!-- ✅ ADD: forgot button (no page change needed) -->
+        <button type="button" class="btn btn-outline-secondary" @click="forgot" :disabled="busy">
+          Forgot password
+        </button>
+      </div>
+
+      <!-- ✅ ADD: friendly feedback area -->
+      <p class="text-danger mt-2" v-if="err" role="alert">{{ err }}</p>
+    </form>
+  </main>
+</template>

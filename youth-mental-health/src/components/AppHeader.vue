@@ -14,26 +14,45 @@
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           <li class="nav-item"><RouterLink class="nav-link" to="/">Home</RouterLink></li>
           <li class="nav-item"><RouterLink class="nav-link" to="/resources">Resources</RouterLink></li>
-          <li class="nav-item" v-if="canCreate">
-            <RouterLink class="nav-link" to="/resources/new">+ Add</RouterLink>
-          </li>
           <li class="nav-item"><RouterLink class="nav-link" to="/get-help">Get Help</RouterLink></li>
           <li class="nav-item"><RouterLink class="nav-link" to="/contact">Contact</RouterLink></li>
         </ul>
 
-        <!-- Right: search -->
+        <!-- Search -->
         <form class="d-flex me-3" role="search" @submit.prevent="onSearch">
           <input v-model="q" class="form-control" type="search" placeholder="Search resources..." />
         </form>
 
-        <!-- Right: auth area -->
+        <!-- Right: auth / greeting -->
         <div class="d-flex align-items-center gap-2">
           <template v-if="user">
-            <span class="navbar-text small">
-              Hi, {{ displayName }} <span class="text-uppercase">({{ role }})</span>
-            </span>
-            <button class="btn btn-outline-secondary btn-sm" @click="doLogout">Logout</button>
+            <!-- Admin: greeting is a dropdown toggle -->
+            <div v-if="role === 'admin'" class="dropdown">
+              <button class="btn btn-link text-decoration-none dropdown-toggle px-0"
+                      data-bs-toggle="dropdown" aria-expanded="false"
+                      aria-label="Account menu">
+                Hi, {{ displayName }} <span class="text-uppercase">({{ role }})</span>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><RouterLink class="dropdown-item" to="/admin">Dashboard</RouterLink></li>
+                <li><RouterLink class="dropdown-item" to="/admin/email">Send Email</RouterLink></li>
+                <li><RouterLink class="dropdown-item" to="/admin/resources-table">Manage Resources</RouterLink></li>
+                <li><RouterLink class="dropdown-item" to="/admin/users">Users</RouterLink></li>
+                <li><hr class="dropdown-divider" /></li>
+                <li><button class="dropdown-item" @click="doLogout">Logout</button></li>
+              </ul>
+            </div>
+
+            <!-- Regular user: plain greeting, separate Logout button -->
+            <template v-else>
+              <span class="navbar-text small">
+                Hi, {{ displayName }} <span class="text-uppercase">({{ role || 'user' }})</span>
+              </span>
+              <button class="btn btn-outline-secondary btn-sm" @click="doLogout">Logout</button>
+            </template>
           </template>
+
+          <!-- Not signed in -->
           <template v-else>
             <RouterLink class="nav-link" to="/firebase-signin">Sign in</RouterLink>
             <RouterLink class="btn btn-primary btn-sm" to="/firebase-register">Register</RouterLink>
@@ -54,10 +73,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'
-import { getFirestore, doc, getDoc } from 'firebase/firestore'
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 
 const q = ref('')
 const router = useRouter()
@@ -65,40 +84,48 @@ function onSearch() {
   router.push({ path: '/resources', query: { q: q.value } })
 }
 
-// ---- Firebase auth/role state (two roles only: 'admin' | 'user') ----
 const auth = getAuth()
 const db = getFirestore()
 
 const user = ref(null)
 const displayName = ref('')
-const role = ref('') // 'admin' | 'user' (empty when logged out)
+const role = ref('') // 'admin' | 'user'
 
 onMounted(() => {
   onAuthStateChanged(auth, async (u) => {
     user.value = u
-    if (!u) {
-      displayName.value = ''
-      role.value = ''
-      return
-    }
-    displayName.value = u.displayName || u.email?.split('@')[0] || ''
+    if (!u) { displayName.value = ''; role.value = ''; return }
 
-    // default to 'user' unless Firestore says 'admin'
+    displayName.value = u.displayName || u.email?.split('@')[0] || ''
     role.value = 'user'
+
+    const refUser = doc(db, 'users', u.uid)
     try {
-      const snap = await getDoc(doc(db, 'users', u.uid))
-      if (snap.exists() && (snap.data().role === 'admin')) {
-        role.value = 'admin'
+      const snap = await getDoc(refUser)
+      if (snap.exists()) {
+        const data = snap.data() || {}
+        const r = String(data.role ?? 'user').toLowerCase()
+        role.value = (r === 'admin') ? 'admin' : 'user'
+
+        // ✅ backfill createdAt if missing
+        if (!data.createdAt) {
+          await setDoc(refUser, { createdAt: serverTimestamp() }, { merge: true })
+        }
+      } else {
+        // ✅ create minimal profile if it's missing (first login via Google/email link, etc.)
+        await setDoc(refUser, {
+          email: u.email?.toLowerCase() || '',
+          name: u.displayName || (u.email?.split('@')[0] || 'User'),
+          role: 'user',
+          createdAt: serverTimestamp(),
+        }, { merge: true })
+        role.value = 'user'
       }
-    } catch (_) {
-      // if read fails, silently fall back to 'user'
+    } catch {
       role.value = 'user'
     }
   })
 })
-
-// Only admins see the +Add link
-const canCreate = computed(() => user.value && role.value === 'admin')
 
 async function doLogout() {
   await signOut(auth)

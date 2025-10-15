@@ -32,14 +32,9 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import RatingStars from './RatingStars.vue'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
-import {
-  getFirestore, doc, setDoc, serverTimestamp,
-  collection, onSnapshot
-} from 'firebase/firestore'
+import { getFirestore, doc, setDoc, serverTimestamp, collection, onSnapshot } from 'firebase/firestore'
 
-const props = defineProps({
-  resourceId: { type: String, required: true }
-})
+const props = defineProps({ resourceId: { type: String, required: true } })
 
 const route = useRoute()
 const returnTo = computed(() => route.fullPath)
@@ -48,23 +43,23 @@ const auth = getAuth()
 const db = getFirestore()
 
 const user = ref(null)
-const myValue = ref(0)   // current user's rating value
+const myValue = ref(0)
 const avg = ref(0)
 const count = ref(0)
 const saving = ref(false)
 const savedTick = ref(false)
 const err = ref('')
 
+let stopAuth = null
 let unsubAll = null
 let unsubMine = null
 
-// listen to auth
 onMounted(() => {
-  const stopAuth = onAuthStateChanged(auth, (u) => {
+  stopAuth = onAuthStateChanged(auth, (u) => {
     user.value = u
     watchMyRating()
   })
-  // aggregate ratings in real-time (avg + count)
+
   const ratingsCol = collection(db, 'resources', props.resourceId, 'ratings')
   unsubAll = onSnapshot(ratingsCol, (snap) => {
     const vals = []
@@ -75,12 +70,12 @@ onMounted(() => {
     count.value = vals.length
     avg.value = vals.length ? vals.reduce((a,b)=>a+b,0) / vals.length : 0
   }, (e) => { console.error(e); err.value = 'Failed to load ratings.' })
+})
 
-  onUnmounted(() => {
-    stopAuth?.()
-    unsubAll?.()
-    unsubMine?.()
-  })
+onUnmounted(() => {
+  stopAuth?.()
+  unsubAll?.()
+  unsubMine?.()
 })
 
 function watchMyRating(){
@@ -100,10 +95,7 @@ async function setRating(v){
     savedTick.value = false
     err.value = ''
     const myDocRef = doc(db, 'resources', props.resourceId, 'ratings', user.value.uid)
-    await setDoc(myDocRef, {
-      value: v,
-      updatedAt: serverTimestamp()
-    }, { merge: true })
+    await setDoc(myDocRef, { value: v, updatedAt: serverTimestamp() }, { merge: true })
     savedTick.value = true
     setTimeout(()=> savedTick.value = false, 1200)
   } catch (e) {
