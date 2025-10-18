@@ -27,6 +27,7 @@ const SENDGRID_KEY = process.env.SENDGRID_KEY;
 const FROM_EMAIL = process.env.FROM_EMAIL || "no-reply@yourdomain.test";
 const FROM_NAME = process.env.FROM_NAME || "Youth Mental Health";
 
+
 if (!SENDGRID_KEY) {
   logger.error("Missing SENDGRID_KEY env var. Set it in functions/.env");
 }
