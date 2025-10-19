@@ -1,0 +1,90 @@
+// firestore.rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function roleOf(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.role;
+    }
+    function isAdmin() { return signedIn() && roleOf(request.auth.uid) == 'admin'; }
+
+    // ---- users ----
+    match /users/{uid} {
+      // users create their own profile; role must be 'user' on self-create
+      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.role == 'user';
+      // read own doc or any doc if admin
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      // user may update own doc but cannot set role
+      allow update: if signedIn() && request.auth.uid == uid && !('role' in request.resource.data);
+      // admins can do anything on users
+      allow update, delete: if isAdmin();
+    }
+
+    // ---- resources (public read; admin write) ----
+    match /resources/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ratings under a resource
+    match /resources/{id}/ratings/{uid} {
+      allow read: if true;
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.value is number
+        && request.resource.data.value >= 1
+        && request.resource.data.value <= 5;
+      allow delete: if (signedIn() && request.auth.uid == uid) || isAdmin();
+    }
+
+    // ---- services (map locations; public read, admin write) ----
+    match /services/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---- appointments ----
+    match /appointments/{id} {
+      // Admins see all; non-admins only their own
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+
+      // Users create their own appointment (basic validation)
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.start is string
+        && request.resource.data.end is string
+        && request.resource.data.start < request.resource.data.end
+        && (!('allDay' in request.resource.data) || request.resource.data.allDay is bool)
+        && (!('title' in request.resource.data) || request.resource.data.title is string);
+
+      // Only admins may update/delete appointments
+      allow update, delete: if isAdmin();
+    }
+
+    // ---- appointmentLocks (conflict prevention) ----
+    match /appointmentLocks/{lockId} {
+      // Allow GET for signed-in users so the transaction can check existence
+      allow get: if signedIn();
+      // Do not allow listing to regular users
+      allow list: if isAdmin();
+
+      // Anyone signed in can create a lock for their own booking (validated)
+      allow create: if signedIn()
+        && request.resource.data.counselorId is string
+        && request.resource.data.start is string
+        && request.resource.data.end is string
+        && request.resource.data.start < request.resource.data.end
+        && request.resource.data.by == request.auth.uid;
+
+      // Only admins can modify or delete locks
+      allow update, delete: if isAdmin();
+    }
+
+    // ---- aiChats log (optional) ----
+    match /aiChats/{id} {
+      allow create: if signedIn();
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}
