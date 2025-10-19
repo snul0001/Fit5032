@@ -7,7 +7,7 @@ import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import { db } from '../firebase'
 
-// ⬇️ NEW: import Auth (to get currentUser) + serverTimestamp
+// NEW: import Auth (to get currentUser) + serverTimestamp
 import { getAuth } from 'firebase/auth'
 import {
   collection,
@@ -23,7 +23,7 @@ const auth = getAuth()
 
 // ...your existing code (events, listeners, etc.)
 
-// ⬇️ REPLACE your existing createBooking with this one
+// REPLACE your existing createBooking with this one
 async function createBooking({ title, start, end, allDay, resourceId, resourceName }) {
   const user = auth.currentUser
   if (!user) {

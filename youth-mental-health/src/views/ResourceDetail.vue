@@ -15,7 +15,7 @@
       :to="{ name: 'resource-edit', params: { id: res.id } }"
     >Edit</RouterLink>
 
-    <!-- ⭐ Ratings -->
+    <!-- Ratings -->
     <ResourceRating :resource-id="res.id" />
 
     <p class="lead mt-3">{{ res.summary }}</p>

@@ -237,9 +237,19 @@ function statusClass(s){
   return 'bg-primary-subtle text-primary-emphasis border border-primary-subtle'
 }
 
+/* ----- NEW: sort caret helpers (no logic changes) ----- */
+function caretFor(field){
+  if (sortBy.value !== field) return '↕'
+  return sortDir.value === 'asc' ? '▲' : '▼'
+}
+function ariaSortFor(field){
+  if (sortBy.value !== field) return 'none'
+  return sortDir.value === 'asc' ? 'ascending' : 'descending'
+}
+
 /* ---------- Charts (Canvas) ---------- */
 const chartTitle = computed(() => {
-  if (currentTab.value === 'Appointments') return 'Appointments — Status over last 6 weeks'
+  if (currentTab.value === 'Appointments') return 'Appointments — Bookings per week'
   if (currentTab.value === 'Users')        return 'Users — Signups (last 6 months)'
   return 'Resources — Topics split'
 })
@@ -268,22 +278,22 @@ function isoWeek(d){
   const weekNo = Math.ceil((((date - yearStart)/86400000) + 1)/7)
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2,'0')}`
 }
-function buildAppointmentsWeekly(){
+
+/* === simple weekly booking counts (Appointments) === */
+function buildAppointmentsWeeklyCount(){
   const now = new Date()
-  const weeks = []
-  for (let i=5;i>=0;i--){ const d=new Date(now); d.setDate(d.getDate()-i*7); weeks.push(isoWeek(d)) }
-  const statuses = new Set()
-  for (const r of filtered.value) statuses.add((r.status||'Pending').trim())
-  const statusList = Array.from(statuses).sort()
-  const series = statusList.map(s => ({ name:s, data:weeks.map(()=>0) }))
+  const labels = []
+  for (let i=5;i>=0;i--){ const d=new Date(now); d.setDate(d.getDate()-i*7); labels.push(isoWeek(d)) }
+  const counts = Object.fromEntries(labels.map(k=>[k,0]))
   for (const r of filtered.value){
-    if (!r.start) continue
-    const dt = new Date(r.start); if (isNaN(+dt)) continue
-    const w = isoWeek(dt); const wi = weeks.indexOf(w); if (wi === -1) continue
-    const si = statusList.indexOf((r.status||'Pending').trim()); if (si>=0) series[si].data[wi]++
+    const raw = r.createdAt ? r.createdAt : (r.start ? new Date(r.start) : null)
+    if (!raw) continue
+    const key = isoWeek(raw)
+    if (counts[key] != null) counts[key]++
   }
-  return { labels:weeks, series }
+  return { labels, values: labels.map(k=>counts[k]) }
 }
+
 function buildUsersMonthly(){
   const now = new Date()
   const labels = []
@@ -314,9 +324,9 @@ function drawChart(){
   const ctx = c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height)
 
   if (currentTab.value === 'Appointments'){
-    const { labels, series } = buildAppointmentsWeekly()
-    chartState.type='stackedbar'; chartState.labels=labels; chartState.series=series
-    drawStackedBar(ctx, labels, series, chartTitle.value)
+    const { labels, values } = buildAppointmentsWeeklyCount()
+    chartState.type='bar'; chartState.labels=labels; chartState.series=[{name:'Bookings', data:values}]
+    drawBar(ctx, labels, values, chartTitle.value)
   } else if (currentTab.value === 'Users'){
     const { labels, values } = buildUsersMonthly()
     chartState.type='area'; chartState.labels=labels; chartState.series=[{name:'Signups', data:values}]
@@ -334,31 +344,31 @@ function drawTitle(ctx, title){
   ctx.fillText(title, 16*devicePixelRatio, 26*devicePixelRatio)
   ctx.restore()
 }
-function drawStackedBar(ctx, labels, series, title){
+
+/* === simple vertical bar chart === */
+function drawBar(ctx, labels, values, title){
   drawTitle(ctx, title)
   const top=40*dpr(), bottom=40*dpr(), left=52*dpr(), right=16*dpr()
   const w=ctx.canvas.width-left-right, h=ctx.canvas.height-top-bottom
-  const totals = labels.map((_,i)=>series.reduce((s,ss)=>s+(ss.data[i]||0),0))
-  const max=Math.max(1,...totals), slotW=w/(labels.length||1), barW=slotW*0.6, gap=slotW-barW
+  const max=Math.max(1,...values)
+  const slotW=w/(labels.length||1), barW=slotW*0.6, gap=slotW-barW
 
   // axes
   ctx.strokeStyle='#e9ecef'; ctx.beginPath()
   ctx.moveTo(left,top); ctx.lineTo(left,top+h); ctx.lineTo(left+w,top+h); ctx.stroke()
 
   labels.forEach((lab,i)=>{
-    let yCursor=top+h
-    series.forEach((s,si)=>{
-      const v=s.data[i]; if(!v) return
-      const barH=(v/max)*h, x=left+i*slotW+gap/2, y=yCursor-barH
-      ctx.fillStyle=paletteBars[si%paletteBars.length]
-      ctx.fillRect(x,y,barW,barH)
-      yCursor=y
-    })
+    const v=values[i]||0
+    const barH=(v/max)*h, x=left+i*slotW+gap/2, y=top+h-barH
+    ctx.fillStyle=paletteBars[0]
+    ctx.fillRect(x,y,barW,barH)
+    // label (x-axis)
     ctx.fillStyle='#6c757d'; ctx.textAlign='center'
     ctx.font=`${12*dpr()}px system-ui,-apple-system,Segoe UI,Roboto,sans-serif`
     ctx.fillText(lab.replace('W',' W'), left+i*slotW+slotW/2, top+h+16*dpr())
   })
 }
+
 function drawArea(ctx, labels, values, title){
   drawTitle(ctx, title)
   const top=40*dpr(), bottom=40*dpr(), left=52*dpr(), right=16*dpr()
@@ -450,7 +460,6 @@ function onCanvasMove(e){
   let label=null, value=null
 
   if (chartState.type==='area'){
-    // nearest point
     const top=40*dpr(), bottom=40*dpr(), left=52*dpr(), right=16*dpr()
     const w=c.width-left-right, h=c.height-top-bottom
     const vals=chartState.series[0].data
@@ -466,20 +475,18 @@ function onCanvasMove(e){
       let ang=Math.atan2(dy,dx); if (ang<-Math.PI/2) ang+=Math.PI*2
       for (let i=0;i<segs.length;i++){ if(ang>=segs[i].start && ang<=segs[i].end){ chartState.hoverI=i; label=chartState.labels[i]; value=chartState.series[0].data[i]; break } }
     } else chartState.hoverI=-1
-  } else if (chartState.type==='stackedbar'){
-    // simple re-hit same math as draw
-    const { labels, series } = chartState
+  } else if (chartState.type==='bar'){
+    // Hit-test bars (same math as drawBar)
     const top=40*dpr(), bottom=40*dpr(), left=52*dpr(), right=16*dpr()
     const w=c.width-left-right, h=c.height-top-bottom
-    const totals = labels.map((_,i)=>series.reduce((s,ss)=>s+(ss.data[i]||0),0))
-    const max=Math.max(1,...totals), slotW=w/(labels.length||1), barW=slotW*0.6, gap=slotW-barW
-    for (let i=0;i<labels.length;i++){
-      const x0=left+i*slotW+gap/2; let yCursor=top+h
-      for (let s=0;s<series.length;s++){
-        const v=series[s].data[i]; if(!v) continue
-        const barH=(v/max)*h, y0=yCursor-barH
-        if (x>=x0 && x<=x0+barW && y>=y0 && y<=y0+barH){ chartState.hoverS=s; chartState.hoverI=i; label=`${series[s].name} @ ${labels[i]}`; value=v }
-        yCursor=y0
+    const vals=chartState.series[0].data
+    const max=Math.max(1,...vals)
+    const slotW=w/(chartState.labels.length||1), barW=slotW*0.6, gap=slotW-barW
+    for (let i=0;i<chartState.labels.length;i++){
+      const v=vals[i]||0
+      const barH=(v/max)*h, x0=left+i*slotW+gap/2, y0=top+h-barH
+      if (x>=x0 && x<=x0+barW && y>=y0 && y<=y0+barH){
+        chartState.hoverI=i; label=chartState.labels[i]; value=v; break
       }
     }
   }
@@ -498,7 +505,6 @@ function onCanvasLeave(){ const tt=chartTooltip.value; if(tt) tt.style.display='
     <div class="container py-4 d-flex flex-wrap gap-3 align-items-end">
       <div>
         <h1 class="display-6 m-0 text-white">Admin Dashboard</h1>
-        <p class="text-white-50 mb-0">Pick a view • Search • Explore</p>
       </div>
 
       <!-- Clean, intuitive dropdown -->
@@ -556,31 +562,55 @@ function onCanvasLeave(){ const tt=chartTooltip.value; if(tt) tt.style.display='
             <!-- Heads -->
             <thead class="table-sticky" v-if="currentTab === 'Appointments'">
               <tr>
-                <th role="button" @click="changeSort('title')">Title</th>
-                <th role="button" @click="changeSort('start')">Start</th>
+                <th role="button" :aria-sort="ariaSortFor('title')" @click="changeSort('title')">
+                  Title <span class="sort-caret">{{ caretFor('title') }}</span>
+                </th>
+                <th role="button" :aria-sort="ariaSortFor('start')" @click="changeSort('start')">
+                  Start <span class="sort-caret">{{ caretFor('start') }}</span>
+                </th>
                 <th>End</th>
-                <th role="button" @click="changeSort('status')">Status</th>
+                <th role="button" :aria-sort="ariaSortFor('status')" @click="changeSort('status')">
+                  Status <span class="sort-caret">{{ caretFor('status') }}</span>
+                </th>
                 <th>Reason</th>
-                <th role="button" @click="changeSort('userName')">User</th>
-                <th role="button" @click="changeSort('counselorName')">Counselor</th>
-                <th role="button" @click="changeSort('createdAt')">Created</th>
+                <th role="button" :aria-sort="ariaSortFor('userName')" @click="changeSort('userName')">
+                  User <span class="sort-caret">{{ caretFor('userName') }}</span>
+                </th>
+                <th role="button" :aria-sort="ariaSortFor('counselorName')" @click="changeSort('counselorName')">
+                  Counselor <span class="sort-caret">{{ caretFor('counselorName') }}</span>
+                </th>
+                <th role="button" :aria-sort="ariaSortFor('createdAt')" @click="changeSort('createdAt')">
+                  Created <span class="sort-caret">{{ caretFor('createdAt') }}</span>
+                </th>
               </tr>
             </thead>
 
             <thead class="table-sticky" v-else-if="currentTab === 'Users'">
               <tr>
-                <th role="button" @click="changeSort('name')">Name</th>
-                <th role="button" @click="changeSort('email')">Email</th>
-                <th role="button" @click="changeSort('role')">Role</th>
-                <th role="button" @click="changeSort('createdAt')">Created</th>
+                <th role="button" :aria-sort="ariaSortFor('name')" @click="changeSort('name')">
+                  Name <span class="sort-caret">{{ caretFor('name') }}</span>
+                </th>
+                <th role="button" :aria-sort="ariaSortFor('email')" @click="changeSort('email')">
+                  Email <span class="sort-caret">{{ caretFor('email') }}</span>
+                </th>
+                <th role="button" :aria-sort="ariaSortFor('role')" @click="changeSort('role')">
+                  Role <span class="sort-caret">{{ caretFor('role') }}</span>
+                </th>
+                <th role="button" :aria-sort="ariaSortFor('createdAt')" @click="changeSort('createdAt')">
+                  Created <span class="sort-caret">{{ caretFor('createdAt') }}</span>
+                </th>
               </tr>
             </thead>
 
             <thead class="table-sticky" v-else>
               <tr>
-                <th role="button" @click="changeSort('title')">Title</th>
+                <th role="button" :aria-sort="ariaSortFor('title')" @click="changeSort('title')">
+                  Title <span class="sort-caret">{{ caretFor('title') }}</span>
+                </th>
                 <th v-if="resourcesColumns.showTopics">Topics</th>
-                <th v-if="resourcesColumns.showReadingTime" role="button" @click="changeSort('readingTime')">Reading Time</th>
+                <th v-if="resourcesColumns.showReadingTime" role="button" :aria-sort="ariaSortFor('readingTime')" @click="changeSort('readingTime')">
+                  Reading Time <span class="sort-caret">{{ caretFor('readingTime') }}</span>
+                </th>
               </tr>
             </thead>
 
@@ -698,6 +728,7 @@ function onCanvasLeave(){ const tt=chartTooltip.value; if(tt) tt.style.display='
 tbody.table-striped tr:nth-child(odd) { background-color: #fcfdff; }
 .text-truncate-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 th[role="button"] { cursor: pointer; white-space: nowrap; }
+.sort-caret { margin-left: .35rem; font-size: .8em; color: #6c757d; }
 
 /* Charts */
 .chart-body { min-height: 300px; background: #fff; }

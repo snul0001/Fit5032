@@ -1,11 +1,21 @@
 <template>
-  <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top">
+  <nav
+    class="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top"
+    role="navigation"
+    aria-label="Primary"
+  >
     <div class="container">
       <RouterLink class="navbar-brand fw-semibold" to="/">Youth Mental Health</RouterLink>
 
-      <button class="navbar-toggler" type="button"
-              data-bs-toggle="collapse" data-bs-target="#nav"
-              aria-controls="nav" aria-expanded="false" aria-label="Toggle navigation">
+      <button
+        class="navbar-toggler"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#nav"
+        aria-controls="nav"
+        aria-expanded="false"
+        aria-label="Toggle navigation"
+      >
         <span class="navbar-toggler-icon"></span>
       </button>
 
@@ -20,34 +30,31 @@
           <li class="nav-item"><RouterLink class="nav-link" to="/contact">Contact</RouterLink></li>
         </ul>
 
-
-
         <!-- Right: auth / greeting -->
         <div class="d-flex align-items-center gap-2">
           <template v-if="user">
             <!-- Admin: greeting is a dropdown toggle -->
             <div v-if="role === 'admin'" class="dropdown">
-              <button class="btn btn-link text-decoration-none dropdown-toggle px-0"
-                      data-bs-toggle="dropdown" aria-expanded="false"
-                      aria-label="Account menu">
+              <button
+                class="btn btn-link text-decoration-none dropdown-toggle px-0"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+                aria-label="Account menu"
+              >
                 Hi, {{ displayName }} <span class="text-uppercase">({{ role }})</span>
               </button>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li><RouterLink class="dropdown-item" to="/admin">Dashboard</RouterLink></li>
                 <li><RouterLink class="dropdown-item" to="/admin/email">Send Email</RouterLink></li>
                 <li><RouterLink class="dropdown-item" to="/admin/resources-table">Manage Resources</RouterLink></li>
-                <li><RouterLink class="dropdown-item" to="/admin/users">Users</RouterLink></li>
+                
                 <li><RouterLink class="dropdown-item" to="/admin/export">Export Data</RouterLink></li>
-
-
-
-
                 <li><hr class="dropdown-divider" /></li>
                 <li><button class="dropdown-item" @click="doLogout">Logout</button></li>
               </ul>
             </div>
 
-            <!-- Regular user: plain greeting, separate Logout button -->
+            <!-- Regular user -->
             <template v-else>
               <span class="navbar-text small">
                 Hi, {{ displayName }} <span class="text-uppercase">({{ role || 'user' }})</span>
@@ -65,7 +72,6 @@
       </div>
     </div>
   </nav>
-
 </template>
 
 <script setup>
@@ -103,12 +109,10 @@ onMounted(() => {
         const r = String(data.role ?? 'user').toLowerCase()
         role.value = (r === 'admin') ? 'admin' : 'user'
 
-        // ✅ backfill createdAt if missing
         if (!data.createdAt) {
           await setDoc(refUser, { createdAt: serverTimestamp() }, { merge: true })
         }
       } else {
-        // ✅ create minimal profile if it's missing (first login via Google/email link, etc.)
         await setDoc(refUser, {
           email: u.email?.toLowerCase() || '',
           name: u.displayName || (u.email?.split('@')[0] || 'User'),
