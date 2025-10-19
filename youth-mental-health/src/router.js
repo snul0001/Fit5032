@@ -31,7 +31,7 @@ import AdminExport from './views/AdminExportView.vue'
 
 import BookAppointmentsView from './views/BookAppointmentsView.vue'
 // src/router/index.js (add one route)
-
+import AdminAppointmentsTable from './views/AdminAppointmentsTable.vue'
 
 
 
@@ -61,7 +61,7 @@ export default createRouter({
     { path: '/export', component: PublicExport },                 // everyone
     { path: '/admin/export', component: AdminExport }, 
     { path: '/book', name: 'book', component: BookAppointmentsView },
- 
+    { path: '/admin/appointments', component: AdminAppointmentsTable },
   ],
   scrollBehavior: () => ({ top: 0 })
 });

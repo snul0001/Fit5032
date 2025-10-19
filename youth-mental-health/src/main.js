@@ -1,29 +1,11 @@
+// main.js
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
+import { auth, db } from './firebase' // Import from the separate file
 
 import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap/dist/js/bootstrap.bundle.min.js'
-
-// --- Firebase core ---
-import { initializeApp } from 'firebase/app'
-import { getAuth, onAuthStateChanged } from 'firebase/auth'
-import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore'
-
-
-
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyCK2ny8l7EXD15KkFMb0UKrggNlxwHwxDo",
-  authDomain: "week7-sriadityanulu.firebaseapp.com",
-  projectId: "week7-sriadityanulu",
-  storageBucket: "week7-sriadityanulu.firebasestorage.app",
-  messagingSenderId: "970607199582",
-  appId: "1:970607199582:web:d4bab620bdeef7f1bfbbcf"
-}
-
-// Initialize Firebase
-initializeApp(firebaseConfig)
 
 // Create Vue app
 const app = createApp(App)
@@ -33,9 +15,8 @@ app.config.errorHandler = (err, instance, info) => {
 app.use(router).mount('#app')
 
 // --- Ensure any registered/logged-in user appears in Firestore ---
-// (No timestamps; role defaults to 'user'. You can flip to 'admin' in console.)
-const auth = getAuth()
-const db = getFirestore()
+import { onAuthStateChanged } from 'firebase/auth'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return

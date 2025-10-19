@@ -1,7 +1,9 @@
 <script setup>
 import AppHeader from './components/AppHeader.vue'
 import FooterBar from './components/FooterBar.vue'
-import AskAI from './lib/AskAI.vue'
+
+
+
 
 </script>
 
@@ -35,7 +37,7 @@ import AskAI from './lib/AskAI.vue'
     </div>
   </div>
 
-  <AskAI />
+ 
   </aside>
 
   
@@ -50,6 +52,11 @@ import AskAI from './lib/AskAI.vue'
   <footer>
     <FooterBar />
   </footer>
+
+  <!-- …your existing App.vue template… -->
+
+
+
 </template>
 
 <style>

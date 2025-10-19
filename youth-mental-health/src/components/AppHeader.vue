@@ -37,7 +37,6 @@
                 <li><RouterLink class="dropdown-item" to="/admin/email">Send Email</RouterLink></li>
                 <li><RouterLink class="dropdown-item" to="/admin/resources-table">Manage Resources</RouterLink></li>
                 <li><RouterLink class="dropdown-item" to="/admin/users">Users</RouterLink></li>
-                <li><RouterLink class="dropdown-item" to="/admin/seed-services">Seed Services</RouterLink></li>
                 <li><RouterLink class="dropdown-item" to="/admin/export">Export Data</RouterLink></li>
 
 

@@ -7,7 +7,7 @@
       <div class="card-body d-flex flex-wrap gap-2 align-items-center">
         <div class="me-2">
           <label class="form-label mb-1">Counselor</label>
-          <select v-model="counselorId" class="form-select">
+          <select v-model="counselorId" class="form-select" aria-label="Select counselor">
             <option disabled value="">Select a counselor</option>
             <option v-for="c in counselors" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
@@ -19,7 +19,7 @@
         </div>
 
         <div class="ms-auto small text-muted">
-          Business hours: Mon–Fri 9:00–17:00 · 30-min slots
+          Business hours: Mon–Fri 09:00–17:00 · 30-min slots
         </div>
       </div>
     </div>
@@ -28,11 +28,8 @@
     <div v-if="err" class="alert alert-danger" role="alert">{{ err }}</div>
     <div v-if="msg" class="alert alert-success" role="status">{{ msg }}</div>
 
-    <!-- Calendar -->
-    <FullCalendar
-      ref="calRef"
-      :options="calendarOptions"
-    />
+    <!-- Calendar (only YOUR appointments) -->
+    <FullCalendar ref="calRef" :options="calendarOptions" />
   </div>
 </template>
 
@@ -45,7 +42,8 @@ import interactionPlugin from '@fullcalendar/interaction'
 
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import {
-  getFirestore, collection, onSnapshot, query, where, doc, runTransaction, serverTimestamp
+  getFirestore, collection, onSnapshot, query, where,
+  doc, runTransaction, serverTimestamp
 } from 'firebase/firestore'
 
 const auth = getAuth()
@@ -59,55 +57,57 @@ const msg = ref('')
 const reason = ref('')
 const counselorId = ref('')
 
-// demo counselor list (you can store these in Firestore if you like)
+// demo counselor list (could be a Firestore collection)
 const counselors = [
   { id: 'c1', name: 'Alex (Counselor)' },
   { id: 'c2', name: 'Sam (Counselor)' },
   { id: 'c3', name: 'Taylor (Counselor)' },
 ]
 
-// ---- Events from Firestore ----
-const events = ref([]) // FullCalendar event objects
-
+// ---- Events for FullCalendar (current user's) ----
+const events = ref([])
+let stopAuth = null
 let unsubAppts = null
 
 onMounted(() => {
-  const stop = onAuthStateChanged(auth, (u) => {
+  stopAuth = onAuthStateChanged(auth, (u) => {
     user.value = u
     displayName.value = u?.displayName || u?.email?.split('@')[0] || ''
-  })
 
-  // Load all appointments (or scope to counselor if you want)
-  const qAll = query(collection(db, 'appointments'))
-  unsubAppts = onSnapshot(qAll, (snap) => {
-    const arr = []
-    snap.forEach(d => {
-      const a = d.data()
-      arr.push({
-        id: d.id,
-        title: a.title || a.counselorName || 'Appointment',
-        start: a.start,  // ISO strings are fine for FullCalendar
-        end: a.end,
-        extendedProps: a,
-      })
-    })
-    events.value = arr
-  }, (e) => { console.error(e); err.value = 'Failed to load appointments.' })
-
-  onBeforeUnmount(() => {
-    stop?.()
+    // Re-subscribe to MY appointments only (rules require this)
     unsubAppts?.()
+    events.value = []
+
+    if (u) {
+      const qMine = query(collection(db, 'appointments'), where('userId', '==', u.uid))
+      unsubAppts = onSnapshot(qMine, (snap) => {
+        const arr = []
+        snap.forEach(d => {
+          const a = d.data()
+          arr.push({
+            id: d.id,
+            title: a.title || a.counselorName || 'Appointment',
+            start: a.start, // ISO string OK
+            end: a.end,
+            extendedProps: a,
+          })
+        })
+        events.value = arr
+      }, (e) => { console.error(e); err.value = 'Failed to load your appointments.' })
+    }
   })
 })
 
-// ---- Booking flow ----
+onBeforeUnmount(() => {
+  stopAuth?.()
+  unsubAppts?.()
+})
 
-// 30-min slots; we lock by counselor + ISO start
+// ---- Booking flow ----
 function lockIdFor(cId, startIso) {
   return `${cId}_${startIso}`
 }
 
-// Create both appointment and lock in a single transaction
 async function createBooking({ start, end }) {
   if (!user.value) { err.value = 'Please sign in to book.'; return }
   if (!counselorId.value) { err.value = 'Please select a counselor.'; return }
@@ -127,11 +127,11 @@ async function createBooking({ start, end }) {
         throw new Error('That slot was just taken. Please pick another time.')
       }
 
-      // Create appointment doc with an auto id
       const apptRef = doc(collection(db, 'appointments'))
       tx.set(apptRef, {
         userId: user.value.uid,
         userName: displayName.value,
+        userEmail: user.value.email || '',
         counselorId: counselorId.value,
         counselorName: counselors.find(c => c.id === counselorId.value)?.name || 'Counselor',
         title: `${displayName.value} with ${counselors.find(c => c.id === counselorId.value)?.name || 'Counselor'}`,
@@ -142,7 +142,6 @@ async function createBooking({ start, end }) {
         status: 'booked'
       })
 
-      // Create the lock
       tx.set(lockRef, {
         counselorId: counselorId.value,
         start: startIso,
@@ -152,7 +151,7 @@ async function createBooking({ start, end }) {
       })
     })
 
-    msg.value = 'Booked! You’ll see it appear on the calendar.'
+    msg.value = 'Booked! You’ll see it appear on your calendar.'
     setTimeout(() => msg.value = '', 1800)
   } catch (e) {
     console.error(e)
@@ -162,7 +161,6 @@ async function createBooking({ start, end }) {
 
 // ---- Calendar options ----
 const calRef = ref(null)
-
 const calendarOptions = {
   plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
   initialView: 'timeGridWeek',
@@ -183,17 +181,14 @@ const calendarOptions = {
   selectable: true,
   selectMirror: true,
   select: (info) => {
-    // constrain to business hours and 30-min
     const start = roundTo30(info.start)
     const end = new Date(start.getTime() + 30*60000)
-    // quick confirm; you can swap this for a modal
     const ok = confirm(`Book ${fmt(start)}–${fmt(end)} with ${labelCounselor()}?`)
     if (ok) createBooking({ start, end })
   },
   eventOverlap: false,
-  events: (fetchInfo, success, failure) => {
-    // just feed the reactive list
-    success(events.value)
+  events: (fetchInfo, success) => {
+    success(events.value) // only this user's events
   }
 }
 
@@ -205,10 +200,8 @@ function roundTo30(d) {
   x.setMinutes(m < 30 ? 0 : 30)
   return x
 }
-
 function pad(n){ return n < 10 ? '0'+n : ''+n }
 function toIso(d) {
-  // FullCalendar gives local Date; store ISO (local time)
   const y = d.getFullYear()
   const m = pad(d.getMonth()+1)
   const day = pad(d.getDate())
@@ -225,7 +218,7 @@ function labelCounselor(){
 </script>
 
 <style scoped>
-:deep(.fc) { /* FullCalendar base tweaks for Bootstrap-ish look */
+:deep(.fc) {
   --fc-border-color: rgba(0,0,0,.08);
   --fc-today-bg-color: rgba(13,110,253,.06);
 }
