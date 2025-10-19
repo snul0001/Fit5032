@@ -9,9 +9,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.19",
+    "@fullcalendar/daygrid": "^6.1.19",
+    "@fullcalendar/interaction": "^6.1.19",
+    "@fullcalendar/timegrid": "^6.1.19",
+    "@fullcalendar/vue3": "^6.1.19",
+    "@google/generative-ai": "^0.24.1",
     "@popperjs/core": "^2.11.8",
     "bootstrap": "^5.3.7",
     "firebase": "^12.2.1",
+    "jspdf": "^3.0.3",
+    "jspdf-autotable": "^5.0.2",
+    "maplibre-gl": "^5.9.0",
     "vue": "^3.5.18",
     "vue-router": "^4.5.1"
   },

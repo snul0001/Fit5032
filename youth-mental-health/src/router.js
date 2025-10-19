@@ -19,6 +19,22 @@ import AdminResourcesTable from './views/AdminResourcesTable.vue'
 import AdminUsersTable from './views/AdminUsersTable.vue'
 
 
+import AdminServicesSeed from './views/AdminServicesSeed.vue'
+
+import NearByHelpView from './views/NearByHelpView.vue'
+
+
+
+
+import PublicExport from './views/PublicExportView.vue'
+import AdminExport from './views/AdminExportView.vue'
+
+import BookAppointmentsView from './views/BookAppointmentsView.vue'
+// src/router/index.js (add one route)
+
+
+
+
 
 
 
@@ -40,6 +56,12 @@ export default createRouter({
     { path: '/admin/email', name: 'admin-email', component: EmailCompose, meta: { requiresAdmin: true } },
     { path: '/admin/resources-table', name: 'admin-resources-table', component: AdminResourcesTable, meta: { requiresAdmin: true } },
     { path: '/admin/users',          name: 'admin-users',           component: AdminUsersTable,    meta: { requiresAdmin: true } },
+    { path: '/admin/seed-services', component: AdminServicesSeed },
+    { path: '/nearby', component: NearByHelpView },
+    { path: '/export', component: PublicExport },                 // everyone
+    { path: '/admin/export', component: AdminExport }, 
+    { path: '/book', name: 'book', component: BookAppointmentsView },
+ 
   ],
   scrollBehavior: () => ({ top: 0 })
 });

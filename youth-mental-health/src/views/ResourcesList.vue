@@ -1,6 +1,13 @@
 <template>
   <div class="container py-4">
-    <h1 class="mb-3">Resources</h1>
+    <!-- Title row with Export button on the right -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h1 class="mb-0">Resources</h1>
+      <!-- Public export (everyone) -->
+      <RouterLink class="btn btn-outline-primary" to="/export" aria-label="Export resources">
+        Export
+      </RouterLink>
+    </div>
 
     <!-- Admin toolbar -->
     <div v-if="role === 'admin'" class="mb-3 d-flex gap-2">
@@ -10,19 +17,24 @@
       </button>
     </div>
 
-    <!-- search + chips (kept from your design) -->
+    <!-- Search + chips -->
     <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
       <input v-model="q" class="form-control w-100 w-sm-50" placeholder="Search resources..." />
       <div class="ms-auto d-flex flex-wrap gap-2">
-        <button v-for="t in topics" :key="t"
+        <button
+          v-for="t in topics"
+          :key="t"
           class="btn btn-sm"
           :class="topic===t ? 'btn-dark' : 'btn-outline-secondary'"
-          @click="toggle(t)">{{ t }}</button>
+          @click="toggle(t)"
+        >
+          {{ t }}
+        </button>
         <button v-if="topic" class="btn btn-sm btn-outline-secondary" @click="topic=null">Clear</button>
       </div>
     </div>
 
-    <!-- list -->
+    <!-- Cards -->
     <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xxl-4 g-3">
       <div class="col" v-for="r in filtered" :key="r.id">
         <div class="card h-100">
@@ -62,13 +74,17 @@ const items = ref([])
 const q = ref('')
 const topic = ref(null)
 const topics = ["Anxiety","Study Stress","Sleep","Relationships"]
-const error = ref(''); const msg = ref(''); const busy = ref(false)
+const error = ref('')
+const msg = ref('')
+const busy = ref(false)
+
 const route = useRoute()
 q.value = (route.query.q ?? '').toString()
 
 // role
 const role = ref('')
-const auth = getAuth(); const db = getFirestore()
+const auth = getAuth()
+const db = getFirestore()
 let stopAuth = null, unsub = null
 
 onMounted(() => {
@@ -76,7 +92,7 @@ onMounted(() => {
     if (!u) { role.value = ''; return }
     try {
       const snap = await getDoc(doc(db, 'users', u.uid))
-      role.value = (snap.data()?.role === 'admin') ? 'admin' : 'user'
+      role.value = (String(snap.data()?.role || 'user').toLowerCase() === 'admin') ? 'admin' : 'user'
     } catch { role.value = 'user' }
   })
 
