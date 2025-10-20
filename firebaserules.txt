@@ -81,10 +81,6 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // ---- aiChats log (optional) ----
-    match /aiChats/{id} {
-      allow create: if signedIn();
-      allow read, update, delete: if isAdmin();
-    }
+
   }
 }
